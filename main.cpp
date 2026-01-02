@@ -49,13 +49,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             0,
             L"EDIT",
             L"",
-            WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
+            WS_BORDER | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT  | ES_AUTOVSCROLL,
             0, 0, 800, 28,
             hwnd,
             (HMENU)ID_EDITBOX,
             ((LPCREATESTRUCT)lParam)->hInstance,
             NULL
         );
+
+        WCHAR placeholderText[] = L"Enter here";
+        SendMessage(g_hEdit, EM_SETCUEBANNER, 0, (LPARAM)placeholderText);
+
         return 0;
     }
 
@@ -116,7 +120,7 @@ int WINAPI wWinMain(
     int screenWidth = GetSystemMetrics(SM_CXSCREEN);
 	int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-
+    
     RegisterClassW(&wc);
 
     HWND hwnd = CreateWindowExW(
@@ -134,7 +138,6 @@ int WINAPI wWinMain(
     
     if (!hwnd)
         return 0;
-
     ShowWindow(hwnd, nCmdShow);
 
     MSG msg;
