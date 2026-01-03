@@ -1,6 +1,9 @@
 #include <windows.h>
 #include <dwmapi.h>
 #include <iostream>
+#include "Manifest.h"
+#include <CommCtrl.h>
+
 #pragma comment(lib, "dwmapi.lib")
 #define ID_EDITBOX 1001
 #define _WIN32_WINNT 0x0601
@@ -40,6 +43,12 @@ void EnableBlur(HWND hwnd)
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    INITCOMMONCONTROLSEX icex;
+
+	icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+	icex.dwICC = ICC_LISTVIEW_CLASSES;
+	InitCommonControlsEx(&icex);
+
     switch (msg)
     {
     case WM_CREATE:
@@ -49,7 +58,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             0,
             L"EDIT",
             L"",
-            WS_BORDER | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT  | ES_AUTOVSCROLL,
+            WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT  ,
             0, 0, 800, 28,
             hwnd,
             (HMENU)ID_EDITBOX,
@@ -57,8 +66,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             NULL
         );
 
-        WCHAR placeholderText[] = L"Enter here";
-        SendMessage(g_hEdit, EM_SETCUEBANNER, 0, (LPARAM)placeholderText);
+        
 
         return 0;
     }
@@ -67,7 +75,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
-
+        
         if (g_hBackground)
         {
             HDC memDC = CreateCompatibleDC(hdc);
@@ -139,7 +147,8 @@ int WINAPI wWinMain(
     if (!hwnd)
         return 0;
     ShowWindow(hwnd, nCmdShow);
-
+    WCHAR placeholderText[] = L"Search anything bozo...";
+    SendMessage(g_hEdit, EM_SETCUEBANNER, 1, (LPARAM)placeholderText);
     MSG msg;
     while (GetMessageW(&msg, NULL, 0, 0))
     {
