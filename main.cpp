@@ -1,8 +1,13 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <windows.h>
 #include <dwmapi.h>
 #include <iostream>
-#include "Manifest.h"
 #include <CommCtrl.h>
+#include "Manifest.h"
+#include "FileFinder.h"
+
+
 
 #pragma comment(lib, "dwmapi.lib")
 #define ID_EDITBOX 1001
@@ -13,33 +18,7 @@ const wchar_t CLASS_NAME[] = L"SearchBar";
 HBITMAP g_hBackground = NULL;
 HWND g_hEdit = NULL;
 
-void LoadBackground()
-{
-    g_hBackground = (HBITMAP)LoadImageW(
-        NULL,
-        L"makimaaaa.bmp",
-        IMAGE_BITMAP,
-        0, 0,
-        LR_LOADFROMFILE | LR_CREATEDIBSECTION
-    );
 
-    if (!g_hBackground)
-    {
-        DWORD err = GetLastError();
-        wchar_t buf[256];
-        wsprintfW(buf, L"LoadImage failed. GetLastError = %lu", err);
-        MessageBoxW(NULL, buf, L"ERROR", MB_OK);
-    }
-}
-void EnableBlur(HWND hwnd)
-{
-    DWM_BLURBEHIND bb = {};
-    bb.dwFlags = DWM_BB_ENABLE;
-    bb.fEnable = TRUE;
-    bb.hRgnBlur = NULL;
-
-    DwmEnableBlurBehindWindow(hwnd, &bb);
-}
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -67,9 +46,28 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         );
 
         
+        WCHAR placeholderText[] = L"Search anything bozo...";
+        SendMessage(g_hEdit, EM_SETCUEBANNER, 1, (LPARAM)placeholderText);
+
+        
 
         return 0;
     }
+
+    case WM_COMMAND:
+    {
+        if (LOWORD(wParam) == ID_EDITBOX && HIWORD(wParam) == EN_CHANGE) {
+
+            int len = GetWindowTextLengthW(g_hEdit);
+            std::wstring text(len + 1, L'\0');
+
+            GetWindowTextW(g_hEdit, &text[0], len + 1);
+            text.resize(len);
+
+            std::wcout << text << std::endl;
+        }
+    }
+
 
     case WM_PAINT:
     {
@@ -119,6 +117,13 @@ int WINAPI wWinMain(
     PWSTR,
     int nCmdShow)
 {
+    AllocConsole();
+    freopen("CONOUT$", "w", stdout);
+    freopen("CONOUT$", "w", stderr);
+    freopen("CONIN$", "r", stdin);
+
+    std::cout << "Hello World\n";
+
     WNDCLASSW wc = {};
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
@@ -147,8 +152,7 @@ int WINAPI wWinMain(
     if (!hwnd)
         return 0;
     ShowWindow(hwnd, nCmdShow);
-    WCHAR placeholderText[] = L"Search anything bozo...";
-    SendMessage(g_hEdit, EM_SETCUEBANNER, 1, (LPARAM)placeholderText);
+    
     MSG msg;
     while (GetMessageW(&msg, NULL, 0, 0))
     {
