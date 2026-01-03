@@ -130,6 +130,7 @@
   <ItemGroup>
     <ClCompile Include="FileFinder.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="TestRecursion.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileFinder.h" />

@@ -1,29 +1,42 @@
 #include "FileFinder.h"
+#include <windows.h>
+#include <vector>
+#include <string>
 #include <iostream>
 
-std::vector < std::wstring> FileFinder::findFilesForMe(const std::wstring& directory) {
-	std::vector<std::wstring> files;
+void FileFinder::findFilesForMe(const std::wstring& startDir,
+    const std::wstring& target)
+{
+    std::vector<std::wstring> stack;
+    stack.push_back(startDir);
 
-	std::wstring searchPath = L"C:\\" + directory + L".*";
+    while (!stack.empty()) {
+        std::wstring dir = stack.back();
+        stack.pop_back();
 
-	
+        WIN32_FIND_DATAW data;
+        HANDLE hFind = FindFirstFileW((dir + L"\\*").c_str(), &data);
+        if (hFind == INVALID_HANDLE_VALUE)
+            continue;
 
-	std::wcout << "Searching Path: " << searchPath << std::endl;
+        do {
+            if (wcscmp(data.cFileName, L".") == 0 ||
+                wcscmp(data.cFileName, L"..") == 0)
+                continue;
 
-	WIN32_FIND_DATAW fileData;
+            std::wstring path = dir + L"\\" + data.cFileName;
 
-	HANDLE h = FindFirstFileW(searchPath.c_str(), &fileData);
-	if (h == INVALID_HANDLE_VALUE) {
-		std::wcerr << L"Error: Unable to open directory " << directory << L". Error code: " << GetLastError() << std::endl;
-		return files;
-	}
-	std::wstring newPath = searchPath + L"\\";
-	do {
-		if (!(fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-			files.push_back(newPath + fileData.cFileName);
-		}
-	} while (FindNextFileW(h, &fileData));
+            if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                stack.push_back(path);
+            }
+            else if (_wcsicmp(data.cFileName, target.c_str()) == 0) {
+                std::wcout << L"Found: " << path << L"\n";
+                FindClose(hFind);
+                return;
+            }
 
-	FindClose(h);
-	return files;
+        } while (FindNextFileW(hFind, &data));
+
+        FindClose(hFind);
+    }
 }

@@ -4,9 +4,9 @@
 #include <dwmapi.h>
 #include <iostream>
 #include <CommCtrl.h>
+#include <chrono>
 #include "Manifest.h"
 #include "FileFinder.h"
-
 
 
 #pragma comment(lib, "dwmapi.lib")
@@ -18,6 +18,26 @@ const wchar_t CLASS_NAME[] = L"SearchBar";
 HBITMAP g_hBackground = NULL;
 HWND g_hEdit = NULL;
 
+
+DWORD WINAPI MULTITHREADER(LPVOID lpParam) {
+    std::wstring* text = static_cast<std::wstring*>(lpParam);
+
+    FileFinder fileFinderObj = FileFinder();
+
+    auto start = std::chrono::steady_clock::now();
+
+    fileFinderObj.findFilesForMe(L"C:\\", *text);
+
+    auto end = std::chrono::steady_clock::now();
+
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::wcout << L"Search time: " << ms.count() << L" ms\n";
+
+
+    delete text;
+
+    return 0;
+}
 
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -61,6 +81,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         if (LOWORD(wParam) == ID_EDITBOX && HIWORD(wParam) == EN_CHANGE) {
 
+
+
             int len = GetWindowTextLengthW(g_hEdit);
             std::wstring text(len + 1, L'\0');
 
@@ -68,14 +90,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             text.resize(len);
 
 
+            // heap allocated copy of text
+            std::wstring* heapText = new std::wstring(text);
 
-            //std::wcout << text << std::endl;
+            CreateThread(
+                NULL,
+                0,
+                MULTITHREADER,
+                heapText,
+                0,
+                NULL
+            );
 
-            auto files = FileFinder::findFilesForMe(text);
-
-            for (const auto& file : files) {
-                std::wcout << file << std::endl;
-            }
         }
     }
 

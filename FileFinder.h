@@ -5,5 +5,5 @@
 
 class FileFinder {
 public:
-	static std::vector<std::wstring> findFilesForMe(const std::wstring& directory);
+	void findFilesForMe(const std::wstring& startDir, const std::wstring& target);
 };
