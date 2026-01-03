@@ -3,13 +3,7 @@
 #include <string>
 #include <vector>
 
-class FileFinder
-{
+class FileFinder {
 public:
-	explicit FileFinder(const std::wstring& directoryPath);
-	std::vector<std::wstring> findFiles() const;
-
-private:
-	std::wstring path;
+	static std::vector<std::wstring> findFilesForMe(const std::wstring& directory);
 };
-

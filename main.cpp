@@ -28,6 +28,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	icex.dwICC = ICC_LISTVIEW_CLASSES;
 	InitCommonControlsEx(&icex);
 
+
+    
+
     switch (msg)
     {
     case WM_CREATE:
@@ -64,7 +67,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             GetWindowTextW(g_hEdit, &text[0], len + 1);
             text.resize(len);
 
-            std::wcout << text << std::endl;
+
+
+            //std::wcout << text << std::endl;
+
+            auto files = FileFinder::findFilesForMe(text);
+
+            for (const auto& file : files) {
+                std::wcout << file << std::endl;
+            }
         }
     }
 
