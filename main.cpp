@@ -7,6 +7,7 @@
 #include <chrono>
 #include "Manifest.h"
 #include "FileFinder.h"
+#include "IndexFiles.h"
 
 
 #pragma comment(lib, "dwmapi.lib")
@@ -18,6 +19,21 @@ const wchar_t CLASS_NAME[] = L"SearchBar";
 HBITMAP g_hBackground = NULL;
 HWND g_hEdit = NULL;
 
+IndexFiles indexer;
+FileFinder fileFinder;
+
+void StartIndexing() {
+    fileFinder.BuildIndexAtStartup(L"C:\\Users\\aksha\\OneDrive\\Pictures", indexer);
+    std::wcout << "Indexing is Done, you may test your input\n";
+}
+
+void SearchFile(const std::wstring& target) {
+    const auto& index = indexer.getIndex();
+    auto iterator = index.find(target);
+    if (iterator != index.end()) {
+        std::wcout << L"Found: " << iterator->second << L"\n";
+    }
+}
 
 DWORD WINAPI MULTITHREADER(LPVOID lpParam) {
     std::wstring* text = static_cast<std::wstring*>(lpParam);
@@ -40,6 +56,7 @@ DWORD WINAPI MULTITHREADER(LPVOID lpParam) {
 }
 
 
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     INITCOMMONCONTROLSEX icex;
@@ -48,8 +65,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	icex.dwICC = ICC_LISTVIEW_CLASSES;
 	InitCommonControlsEx(&icex);
 
-
-    
 
     switch (msg)
     {
@@ -91,7 +106,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 
             // heap allocated copy of text
-            std::wstring* heapText = new std::wstring(text);
+            /*std::wstring* heapText = new std::wstring(text);
 
             CreateThread(
                 NULL,
@@ -100,7 +115,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 heapText,
                 0,
                 NULL
-            );
+            );*/
+
+            SearchFile(text);
+            
+
 
         }
     }
@@ -159,8 +178,8 @@ int WINAPI wWinMain(
     freopen("CONOUT$", "w", stderr);
     freopen("CONIN$", "r", stdin);
 
-    std::cout << "Hello World\n";
-
+    std::cout << "mem allocated to heap : [&text]\n";
+    std::cout << "Searching tree...\n";
     WNDCLASSW wc = {};
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
@@ -170,6 +189,7 @@ int WINAPI wWinMain(
     int screenWidth = GetSystemMetrics(SM_CXSCREEN);
 	int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
+    StartIndexing();
     
     RegisterClassW(&wc);
 

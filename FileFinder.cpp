@@ -1,4 +1,5 @@
 #include "FileFinder.h"
+
 #include <windows.h>
 #include <vector>
 #include <string>
@@ -39,4 +40,44 @@ void FileFinder::findFilesForMe(const std::wstring& startDir,
 
         FindClose(hFind);
     }
+}
+
+void FileFinder::BuildIndexAtStartup(const std::wstring& rootDir,
+    IndexFiles& indexer) {
+    std::vector<std::wstring> stack;
+    stack.push_back(rootDir);
+
+    while (!stack.empty()) {
+        std::wstring dir = stack.back();
+        stack.pop_back();
+
+        WIN32_FIND_DATAW data;
+        HANDLE hFind = FindFirstFileW((dir + L"\\*").c_str(), &data);
+        if (hFind == INVALID_HANDLE_VALUE)
+            continue;
+
+        do {
+            if (wcscmp(data.cFileName, L".") == 0 ||
+                wcscmp(data.cFileName, L"..") == 0)
+                continue;
+
+            std::wstring fullPath = dir + L"\\" + data.cFileName;
+
+            if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                if (data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+                    continue;
+                if (data.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM)
+                    continue;
+
+                stack.push_back(fullPath);
+            }
+            else {
+                indexer.addFile(data.cFileName, fullPath);
+            }
+
+        } while (FindNextFileW(hFind, &data));
+
+        FindClose(hFind);
+    }
+
 }

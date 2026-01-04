@@ -129,11 +129,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="FileFinder.cpp" />
+    <ClCompile Include="IndexFiles.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="TestRecursion.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileFinder.h" />
+    <ClInclude Include="IndexFiles.h" />
     <ClInclude Include="Manifest.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
