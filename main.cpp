@@ -31,15 +31,33 @@ HBITMAP g_hBackground = NULL;
 HWND g_hEdit = NULL;
 HWND g_hResult = NULL;
 HFONT g_hFont = NULL;
-IndexFiles indexer;
+IndexFiles indexer = IndexFiles();
 FileFinder fileFinder;
 
 /* file handling functionalities ---DO NOT TOUCH--- */
 
+void StartIndexing();
+
+
+void APP_PROTOCOL_HANDLER() {
+	std::wcout << "Index is empty?: " << indexer._isEmpty() << "\n";
+	std::wcout << "Index File exists: " << indexer.diskIndexExists() << "\n";
+    if (indexer._isEmpty()) {
+
+        StartIndexing();
+    }
+    else {
+        std::wcout << L"Index loaded from disk. \n";
+        const auto map = indexer.getIndex();
+		std::wcout << L"Indexed " << map.size() << L" files.\n";
+
+    }
+    
+}
 
 
 void StartIndexing() {
-
+    std::wcout << "Index was empty so building index from scratch...\n";
     std::thread([]{
         fileFinder.BuildIndexAtStartup(L"C:\\Users\\aksha\\OneDrive\\Pictures", indexer);
         fileFinder.BuildIndexAtStartup(L"C:\\Users\\aksha\\OneDrive\\Documents", indexer);
@@ -120,7 +138,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             L"EDIT",
             L"",
             WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL,
-            20, 20, 710, 36,
+            14, 13, 710, 36,
             hwnd,
             (HMENU)ID_EDITBOX,
             ((LPCREATESTRUCT)lParam)->hInstance,
@@ -138,7 +156,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             L"LISTBOX",
             NULL,
             WS_CHILD | WS_VISIBLE | LBS_NOTIFY | WS_VSCROLL,
-            20, 70, 710, 180,
+            14, 70, 710, 180,
             hwnd,
             NULL,
             ((LPCREATESTRUCT)lParam)->hInstance,
@@ -257,8 +275,8 @@ int WINAPI wWinMain(
     freopen("CONOUT$", "w", stderr);
     freopen("CONIN$", "r", stdin);
 
-    std::cout << "mem allocated to heap : [&text]\n";
-    std::cout << "Searching tree...\n";
+    indexer.loadFromDisk();
+    
     WNDCLASSW wc = {};
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
@@ -268,7 +286,6 @@ int WINAPI wWinMain(
     int screenWidth = GetSystemMetrics(SM_CXSCREEN);
 	int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-    StartIndexing();
     
     RegisterClassW(&wc);
 
@@ -289,6 +306,9 @@ int WINAPI wWinMain(
         return 0;
     ShowWindow(hwnd, nCmdShow);
     
+    APP_PROTOCOL_HANDLER();
+
+
     MSG msg;
     while (GetMessageW(&msg, NULL, 0, 0))
     {
