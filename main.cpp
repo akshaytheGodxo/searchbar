@@ -43,13 +43,12 @@ void APP_PROTOCOL_HANDLER() {
 	std::wcout << "Index is empty?: " << indexer._isEmpty() << "\n";
 	std::wcout << "Index File exists: " << indexer.diskIndexExists() << "\n";
     if (indexer._isEmpty()) {
-
+        indexer.openFile();
         StartIndexing();
     }
     else {
         std::wcout << L"Index loaded from disk. \n";
-        const auto map = indexer.getIndex();
-		std::wcout << L"Indexed " << map.size() << L" files.\n";
+        
 
     }
     
@@ -67,19 +66,31 @@ void StartIndexing() {
      }).detach();
 }
 
-void SearchFile(const std::wstring& target) {
-    const auto& index = indexer.getIndex();
-    auto iterator = index.find(target);
-    if (iterator != index.end()) {
-        std::wcout << L"Found: " << iterator->second << L"\n";
-        SendMessageW(g_hResult, LB_RESETCONTENT, 0, 0);
-        SendMessageW(g_hResult, LB_ADDSTRING, 0, (LPARAM)iterator->second.c_str());
-    }
-    else {
-        SendMessageW(g_hResult, LB_RESETCONTENT, 0, 0);
-    }
+void SearchFile(const std::wstring& target)
+{
+    SendMessageW(g_hResult, LB_RESETCONTENT, 0, 0);
 
+    if (target.empty()) return;
+
+    const auto& index = indexer.getIndex();
+
+    for (const auto& i : index)
+    {   
+        const auto file = i.first;
+		const auto path = i.second;
+
+        if (file.find(target) != std::wstring::npos)
+        {
+            SendMessageW(
+                g_hResult,
+                LB_ADDSTRING,
+                0,
+                (LPARAM)path.c_str()
+            );
+        }
+    }
 }
+
 
 
 
@@ -275,6 +286,8 @@ int WINAPI wWinMain(
     freopen("CONOUT$", "w", stderr);
     freopen("CONIN$", "r", stdin);
 
+
+	//std::wcout << L"Tryna load index from disk...\n";
     indexer.loadFromDisk();
     
     WNDCLASSW wc = {};
