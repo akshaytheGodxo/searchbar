@@ -181,8 +181,22 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
 
+    case WM_KEYDOWN:
+    {
+        if (wParam == VK_RETURN) {
+            std::wcout << L"ENTER PRESSED\n";
+            std::exit(EXIT_SUCCESS);
+        }
+    }
+    
     case WM_COMMAND:
     {
+
+        if (wParam == VK_RETURN) {
+			std::wcout << L"ENTER PRESSED\n";
+			std::exit(EXIT_SUCCESS);
+        }
+
         if (LOWORD(wParam) == ID_EDITBOX && HIWORD(wParam) == EN_CHANGE) {
 
 
@@ -246,7 +260,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         EndPaint(hwnd, &ps);
         return 0;
     }
-
+    
     case WM_CTLCOLOREDIT:
     {
         HDC hdc = (HDC)wParam;

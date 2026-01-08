@@ -131,6 +131,7 @@
     <ClCompile Include="FileFinder.cpp" />
     <ClCompile Include="IndexFiles.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Test.cpp" />
     <ClCompile Include="TestRecursion.cpp" />
   </ItemGroup>
   <ItemGroup>
