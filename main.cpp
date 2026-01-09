@@ -11,10 +11,9 @@
 #include "FileFinder.h"
 #include "IndexFiles.h"
 
-
+#pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "dwmapi.lib")
 #define ID_EDITBOX 1001
-#define _WIN32_WINNT 0x0601
 
 /* UI Vars */
 constexpr COLORREF BG_COLOR = RGB(30, 30, 30);
@@ -33,6 +32,7 @@ HWND g_hResult = NULL;
 HFONT g_hFont = NULL;
 IndexFiles indexer = IndexFiles();
 FileFinder fileFinder;
+WNDPROC g_OldListProc;
 
 /* file handling functionalities ---DO NOT TOUCH--- */
 
@@ -91,30 +91,40 @@ void SearchFile(const std::wstring& target)
     }
 }
 
-
-
-
-
-DWORD WINAPI MULTITHREADER(LPVOID lpParam) {
-    std::wstring* text = static_cast<std::wstring*>(lpParam);
-
-    FileFinder fileFinderObj = FileFinder();
-
-    auto start = std::chrono::steady_clock::now();
-
-    fileFinderObj.findFilesForMe(L"C:\\", *text);
-
-    auto end = std::chrono::steady_clock::now();
-
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::wcout << L"Search time: " << ms.count() << L" ms\n";
-
-
-    delete text;
-
-    return 0;
+void OpenFileAtPath(const std::wstring& path) {
+    ShellExecuteW(
+        NULL,
+        L"open",
+        path.c_str(),
+        NULL,
+        NULL,
+        SW_SHOWNORMAL
+    );
 }
 
+LRESULT CALLBACK ListBoxProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == WM_KEYDOWN && wParam == VK_RETURN)
+    {
+        int sel = (int)SendMessageW(hwnd, LB_GETCURSEL, 0, 0);
+        if (sel != LB_ERR)
+        {
+            wchar_t buffer[MAX_PATH];
+            SendMessageW(hwnd, LB_GETTEXT, sel, (LPARAM)buffer);
+            std::wcout << L"Clicked: " << buffer << L"\n";
+
+            OpenFileAtPath(buffer);
+
+
+        }
+        return 0;
+    }
+
+   /* if (msg == WM_KEYDOWN && wParam == VK_DOWN) {
+		std::wcout << "Down key pressed\n";
+    }*/
+
+    return CallWindowProc(g_OldListProc, hwnd, msg, wParam, lParam);
+}
 
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -176,26 +186,26 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         SendMessageW(g_hResult, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-
+        g_OldListProc = (WNDPROC)SetWindowLongPtrW(
+            g_hResult,
+            GWLP_WNDPROC,
+            (LONG_PTR)ListBoxProc
+        );
 
         return 0;
     }
 
     case WM_KEYDOWN:
     {
-        if (wParam == VK_RETURN) {
-            std::wcout << L"ENTER PRESSED\n";
-            std::exit(EXIT_SUCCESS);
+        if (wParam == VK_DOWN) {
+            SetFocus(g_hResult);
+			SendMessageW(g_hResult, LB_SETCURSEL, 0, 0);
         }
     }
     
     case WM_COMMAND:
     {
-
-        if (wParam == VK_RETURN) {
-			std::wcout << L"ENTER PRESSED\n";
-			std::exit(EXIT_SUCCESS);
-        }
+        
 
         if (LOWORD(wParam) == ID_EDITBOX && HIWORD(wParam) == EN_CHANGE) {
 
@@ -279,10 +289,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return (INT_PTR)hBrush;
     }
 
+    case WM_HOTKEY: {
+        if (wParam == 1) {
+            ShowWindow(hwnd, SW_SHOW);
+			SetForegroundWindow(hwnd);
+        }
+    }
+
 
     case WM_DESTROY:
+
         if (g_hBackground)
             DeleteObject(g_hBackground);
+        UnregisterHotKey(hwnd, 1);
+        
         PostQuitMessage(0);
         return 0;
     }
@@ -295,10 +315,6 @@ int WINAPI wWinMain(
     PWSTR,
     int nCmdShow)
 {
-    AllocConsole();
-    freopen("CONOUT$", "w", stdout);
-    freopen("CONOUT$", "w", stderr);
-    freopen("CONIN$", "r", stdin);
 
 
 	//std::wcout << L"Tryna load index from disk...\n";
@@ -329,10 +345,11 @@ int WINAPI wWinMain(
         NULL
     );
     
+
     if (!hwnd)
         return 0;
     ShowWindow(hwnd, nCmdShow);
-    
+    RegisterHotKey(hwnd, 1, MOD_CONTROL | MOD_SHIFT, 'S');
     APP_PROTOCOL_HANDLER();
 
 
