@@ -7,6 +7,7 @@
 #include <chrono>
 #include <thread>
 #include <fstream>
+#include <filesystem>
 #include "Manifest.h"
 #include "FileFinder.h"
 #include "IndexFiles.h"
@@ -14,6 +15,8 @@
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "dwmapi.lib")
 #define ID_EDITBOX 1001
+
+#define FONT_PATH "E:\\Personal Projects\\myengine\\assets\\Poppins\\Poppins-Regular.ttf"
 
 /* UI Vars */
 constexpr COLORREF BG_COLOR = RGB(30, 30, 30);
@@ -33,6 +36,7 @@ HFONT g_hFont = NULL;
 IndexFiles indexer = IndexFiles();
 FileFinder fileFinder;
 WNDPROC g_OldListProc;
+WNDPROC g_OldEditProc;
 
 /* file handling functionalities ---DO NOT TOUCH--- */
 
@@ -66,6 +70,14 @@ void StartIndexing() {
      }).detach();
 }
 
+
+
+std::wstring ParseResult(const std::wstring& path) {
+    std::filesystem::path p(path);
+    return p.filename().wstring();
+}
+
+
 void SearchFile(const std::wstring& target)
 {
     SendMessageW(g_hResult, LB_RESETCONTENT, 0, 0);
@@ -81,6 +93,9 @@ void SearchFile(const std::wstring& target)
 
         if (file.find(target) != std::wstring::npos)
         {
+
+            
+
             SendMessageW(
                 g_hResult,
                 LB_ADDSTRING,
@@ -125,6 +140,21 @@ LRESULT CALLBACK ListBoxProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
     return CallWindowProc(g_OldListProc, hwnd, msg, wParam, lParam);
 }
+LRESULT CALLBACK EditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    if (msg == WM_KEYDOWN && wParam == VK_DOWN)
+    {
+        int count = (int)SendMessageW(g_hResult, LB_GETCOUNT, 0, 0);
+        if (count > 0)
+        {
+            SetFocus(g_hResult);
+            SendMessageW(g_hResult, LB_SETCURSEL, 0, 0);
+        }
+        return 0; // consume key
+    }
+
+    return CallWindowProcW(g_OldEditProc, hwnd, msg, wParam, lParam);
+}
 
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -140,6 +170,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_CREATE:
     {
+        // firstly add the font in memory
+        AddFontResourceExW((LPCWSTR)FONT_PATH, FR_PRIVATE, NULL);
+        // thenc all it
         g_hFont = CreateFontW(
             18, 0, 0, 0,
             FW_NORMAL,
@@ -149,7 +182,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             CLIP_DEFAULT_PRECIS,
             CLEARTYPE_QUALITY,
             VARIABLE_PITCH,
-            L"Segoe UI"
+            L"Poppins"
         );
 
 
@@ -171,6 +204,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         
         
         SendMessage(g_hEdit, EM_SETCUEBANNER, 1, (LPARAM)placeholderText);
+
+        g_OldEditProc = (WNDPROC)SetWindowLongPtrW(
+            g_hEdit,
+            GWLP_WNDPROC,
+            (LONG_PTR)EditProc
+        );
+
 
         g_hResult = CreateWindowExW(
             0,
@@ -217,22 +257,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             GetWindowTextW(g_hEdit, &text[0], len + 1);
             text.resize(len);
 
-
-            // heap allocated copy of text
-            /*std::wstring* heapText = new std::wstring(text);
-
-            CreateThread(
-                NULL,
-                0,
-                MULTITHREADER,
-                heapText,
-                0,
-                NULL
-            );*/
-
             SearchFile(text);
-            
-
 
         }
     }
@@ -301,6 +326,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         if (g_hBackground)
             DeleteObject(g_hBackground);
+        RemoveFontResourceExW((LPCWSTR)FONT_PATH, FR_PRIVATE, NULL);
         UnregisterHotKey(hwnd, 1);
         
         PostQuitMessage(0);
