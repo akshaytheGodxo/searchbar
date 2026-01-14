@@ -131,7 +131,11 @@ LRESULT CALLBACK ListBoxProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
 
         }
-        return 0;
+        
+
+
+        //std::exit(EXIT_SUCCESS);
+
     }
 
    /* if (msg == WM_KEYDOWN && wParam == VK_DOWN) {
