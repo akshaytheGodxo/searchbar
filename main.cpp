@@ -9,6 +9,8 @@
 #include <fstream>
 #include <filesystem>
 #include <gdiplus.h>
+#include <io.h>
+#include <fcntl.h>
 #include "Manifest.h"
 #include "FileFinder.h"
 #include "IndexFiles.h"
@@ -130,7 +132,7 @@ void DrawListBoxItem(DRAWITEMSTRUCT* dis)
 {
     if (dis->itemID == -1) return;
 
-    wchar_t buffer[MAX_PATH];
+    wchar_t buffer[MAX_PATH * 2]; // Increase buffer size for long Unicode paths
     SendMessageW(dis->hwndItem, LB_GETTEXT, dis->itemID, (LPARAM)buffer);
 
     std::wstring fullPath(buffer);
@@ -181,7 +183,7 @@ LRESULT CALLBACK ListBoxProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         int sel = (int)SendMessageW(hwnd, LB_GETCURSEL, 0, 0);
         if (sel != LB_ERR)
         {
-            wchar_t buffer[MAX_PATH];
+            wchar_t buffer[MAX_PATH * 2];
             SendMessageW(hwnd, LB_GETTEXT, sel, (LPARAM)buffer);
             std::wcout << L"Opening: " << buffer << L"\n";
             OpenFileAtPath(buffer);
@@ -243,6 +245,7 @@ void DrawRoundedRect(HDC hdc, RECT rect, int radius, COLORREF color)
 {
     Gdiplus::Graphics graphics(hdc);
     graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+    graphics.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAliasGridFit); // Better text rendering
 
     Gdiplus::SolidBrush brush(Gdiplus::Color(
         GetRValue(color),
@@ -273,7 +276,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         // Add fonts
         AddFontResourceExW((LPCWSTR)FONT_PATH, FR_PRIVATE, NULL);
 
-        // Main font
+        // Main font - Use a font that supports Unicode well
         g_hFont = CreateFontW(
             20, 0, 0, 0,
             FW_NORMAL,
@@ -283,7 +286,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             CLIP_DEFAULT_PRECIS,
             CLEARTYPE_QUALITY,
             VARIABLE_PITCH,
-            L"Poppins"
+            L"Segoe UI" // Fallback to Segoe UI which has excellent Unicode support
         );
 
         // Bold font for results
@@ -296,7 +299,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             CLIP_DEFAULT_PRECIS,
             CLEARTYPE_QUALITY,
             VARIABLE_PITCH,
-            L"Poppins"
+            L"Segoe UI"
         );
 
         // Small font for paths
@@ -309,10 +312,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             CLIP_DEFAULT_PRECIS,
             CLEARTYPE_QUALITY,
             VARIABLE_PITCH,
-            L"Poppins"
+            L"Segoe UI"
         );
 
-        // Search box with more padding
+        // Search box with more padding - explicitly set to Unicode
         g_hEdit = CreateWindowExW(
             0,
             L"EDIT",
@@ -327,7 +330,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         SendMessageW(g_hEdit, WM_SETFONT, (WPARAM)g_hFont, TRUE);
         SendMessageW(g_hEdit, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN, MAKELPARAM(16, 16));
-        SendMessage(g_hEdit, EM_SETCUEBANNER, 1, (LPARAM)placeholderText);
+        SendMessageW(g_hEdit, EM_SETCUEBANNER, TRUE, (LPARAM)placeholderText);
 
         g_OldEditProc = (WNDPROC)SetWindowLongPtrW(
             g_hEdit,
@@ -340,7 +343,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             0,
             L"LISTBOX",
             NULL,
-            WS_CHILD | WS_VISIBLE | LBS_NOTIFY | LBS_OWNERDRAWFIXED | WS_VSCROLL,
+            WS_CHILD | WS_VISIBLE | LBS_NOTIFY | LBS_OWNERDRAWFIXED | WS_VSCROLL | LBS_HASSTRINGS,
             24, 88, 702, 360,
             hwnd,
             NULL,
@@ -538,6 +541,11 @@ int WINAPI wWinMain(
     // Initialize GDI+
     Gdiplus::GdiplusStartupInput gdiplusStartupInput;
     Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
+    // Setup console for proper Unicode output
+    SetConsoleOutputCP(CP_UTF8);
+    _setmode(_fileno(stdout), _O_U16TEXT);
+    std::locale::global(std::locale(""));
 
     indexer.loadFromDisk();
 
