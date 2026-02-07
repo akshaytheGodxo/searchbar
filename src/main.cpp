@@ -1,6 +1,7 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 
+#include <cstdint>
 #include <iostream>
 #include <string>
 
@@ -16,6 +17,7 @@ constexpr float kCursorWidth = 2.f;
 constexpr float kCursorBlinkSeconds = 0.5f;
 constexpr const char *kFontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
 
+bool isPrintableAscii(char32_t unicode)
 bool isPrintableAscii(sf::Uint32 unicode)
 {
 	return unicode >= 32 && unicode < 127;
@@ -28,6 +30,7 @@ int main()
 	window.setFramerateLimit(60);
 
 	sf::Font font;
+	if (!font.openFromFile(kFontPath))
 	if (!font.loadFromFile(kFontPath))
 	{
 		std::cerr << "Failed to load font. Ensure " << kFontPath << " exists.\n";
@@ -43,12 +46,14 @@ int main()
 	searchBar.setOutlineColor(sf::Color(90, 90, 90));
 	searchBar.setPosition({(kWindowWidth - kSearchBarWidth) / 2.f, (kWindowHeight - kSearchBarHeight) / 2.f});
 
+	sf::Text inputText(font);
 	sf::Text inputText;
 	inputText.setFont(font);
 	inputText.setCharacterSize(20);
 	inputText.setFillColor(sf::Color::White);
 	inputText.setPosition({searchBar.getPosition().x + kSearchBarPadding, searchBar.getPosition().y + 8.f});
 
+	sf::Text placeholderText(font);
 	sf::Text placeholderText;
 	placeholderText.setFont(font);
 	placeholderText.setCharacterSize(20);
@@ -84,6 +89,8 @@ int main()
 					continue;
 				}
 
+				const char32_t unicode = textEntered->unicode;
+				if (unicode == U'\b')
 				const sf::Uint32 unicode = textEntered->unicode;
 				if (unicode == 8)
 				{
@@ -92,6 +99,7 @@ int main()
 						input.pop_back();
 					}
 				}
+				else if (unicode == U'\r')
 				else if (unicode == 13)
 				{
 					std::cout << "Search for: " << input << '\n';
@@ -106,6 +114,9 @@ int main()
 
 		inputText.setString(input);
 		const sf::FloatRect textBounds = inputText.getLocalBounds();
+		cursor.setSize(sf::Vector2f{kCursorWidth, textBounds.size.y});
+		cursor.setPosition(
+			sf::Vector2f{inputText.getPosition().x + textBounds.size.x + 2.f, inputText.getPosition().y + 4.f});
 		cursor.setSize({kCursorWidth, textBounds.height});
 		cursor.setPosition({inputText.getPosition().x + textBounds.width + 2.f,
 							inputText.getPosition().y + 4.f});
