@@ -18,6 +18,7 @@ constexpr float kCursorBlinkSeconds = 0.5f;
 constexpr const char *kFontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
 
 bool isPrintableAscii(char32_t unicode)
+bool isPrintableAscii(sf::Uint32 unicode)
 {
 	return unicode >= 32 && unicode < 127;
 }
@@ -30,6 +31,7 @@ int main()
 
 	sf::Font font;
 	if (!font.openFromFile(kFontPath))
+	if (!font.loadFromFile(kFontPath))
 	{
 		std::cerr << "Failed to load font. Ensure " << kFontPath << " exists.\n";
 		return 1;
@@ -45,11 +47,15 @@ int main()
 	searchBar.setPosition({(kWindowWidth - kSearchBarWidth) / 2.f, (kWindowHeight - kSearchBarHeight) / 2.f});
 
 	sf::Text inputText(font);
+	sf::Text inputText;
+	inputText.setFont(font);
 	inputText.setCharacterSize(20);
 	inputText.setFillColor(sf::Color::White);
 	inputText.setPosition({searchBar.getPosition().x + kSearchBarPadding, searchBar.getPosition().y + 8.f});
 
 	sf::Text placeholderText(font);
+	sf::Text placeholderText;
+	placeholderText.setFont(font);
 	placeholderText.setCharacterSize(20);
 	placeholderText.setFillColor(sf::Color(160, 160, 160));
 	placeholderText.setString("Search...");
@@ -85,6 +91,8 @@ int main()
 
 				const char32_t unicode = textEntered->unicode;
 				if (unicode == U'\b')
+				const sf::Uint32 unicode = textEntered->unicode;
+				if (unicode == 8)
 				{
 					if (!input.empty())
 					{
@@ -92,6 +100,7 @@ int main()
 					}
 				}
 				else if (unicode == U'\r')
+				else if (unicode == 13)
 				{
 					std::cout << "Search for: " << input << '\n';
 					input.clear();
@@ -108,6 +117,9 @@ int main()
 		cursor.setSize(sf::Vector2f{kCursorWidth, textBounds.size.y});
 		cursor.setPosition(
 			sf::Vector2f{inputText.getPosition().x + textBounds.size.x + 2.f, inputText.getPosition().y + 4.f});
+		cursor.setSize({kCursorWidth, textBounds.height});
+		cursor.setPosition({inputText.getPosition().x + textBounds.width + 2.f,
+							inputText.getPosition().y + 4.f});
 
 		if (blinkClock.getElapsedTime().asSeconds() >= kCursorBlinkSeconds)
 		{
