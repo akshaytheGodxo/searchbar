@@ -1,0 +1,70 @@
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.opendb
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+Debug/
+Release/
+x64/
+x86/
+build/
+out/
+bin/
+obj/
+
+#index files
+src/index.db
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Makefile
+
+# Visual Studio CMake
+.vscode/
+
+# Generated executables and libraries
+*.exe
+*.dll
+*.lib
+*.exp
+*.pdb
+*.ilk
+
+# Temporary files
+*.tmp
+*.log
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# JetBrains (if you ever use CLion)
+.idea/
+
+# Ninja
+.ninja_deps
+.ninja_log
+
+# Coverage
+*.gcda
+*.gcno
+*.gcov
+
+# Cache folders
+.cache/
+
+# Optional: Ignore generated search indexes
+index.bin
+index.json
+
+# Optional: Ignore downloaded assets
+assets/cache/
