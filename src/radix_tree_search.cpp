@@ -7,6 +7,7 @@
 #include "sqllite/sqlite3.h"
 #include "nlohmann/json.h"
 
+
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
@@ -15,6 +16,7 @@ struct FileInfo
     std::string filename;
     std::string fullpath;
     std::string extension;
+    
 };
 
 struct RadixNode

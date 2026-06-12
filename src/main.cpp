@@ -1,17 +1,13 @@
-// Dear ImGui: standalone example application for Windows API + DirectX 11
-
-// Learn about Dear ImGui:
-// - FAQ                  https://dearimgui.com/faq
-// - Getting Started      https://dearimgui.com/getting-started
-// - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
-// - Introduction, links and more at the top of imgui.cpp
-
 #pragma comment(lib, "dwmapi.lib")
+#define STB_IMAGE_IMPLEMENTATION
+
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
+#include "stb/stb_image.h"
 #include "FileEntry.h"
+#include "image_data.h"
 #include <d3d11.h>
 #include <tchar.h>
 #include <cmath>
@@ -94,7 +90,7 @@ void DrawBetterGlass(ImGuiWindow* w) {
     dl->AddRect(a, b, IM_COL32(255, 255, 255, 40), r);              // border
 }
 
-void ImGuiCreateInput() {
+void ImGuiCreateInput(ID3D11ShaderResourceView* myTexture) {
     
 
 
@@ -204,7 +200,19 @@ void ImGuiCreateInput() {
 
     for (const auto& file : results)
     {
-        if (ImGui::Selectable(file.filename.c_str()))
+        ImGui::PushID(file.fullpath.c_str());
+
+        ImGui::Image(
+            (ImTextureID)myTexture,
+            ImVec2(32, 32)
+        );
+
+        ImGui::SameLine();
+
+        if (ImGui::Selectable(
+            file.filename.c_str(),
+            false,
+            ImGuiSelectableFlags_SpanAvailWidth))
         {
             ShellExecuteA(
                 nullptr,
@@ -215,6 +223,8 @@ void ImGuiCreateInput() {
                 SW_SHOWNORMAL
             );
         }
+
+        ImGui::PopID();
     }
     ImGui::PopStyleVar();
 
@@ -291,6 +301,39 @@ int main(int, char**)
 
     ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
 
+    ID3D11ShaderResourceView* myTexture = nullptr;
+    // image display code
+    unsigned char* rgba_data = stbi_load_from_memory(image_data, sizeof(image_data), &image_width, &image_height, &channels, 4);
+
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = image_width;
+    desc.Height = image_height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	D3D11_SUBRESOURCE_DATA subResource = {};
+    subResource.pSysMem = rgba_data;
+    subResource.SysMemPitch = image_width * 4;
+
+
+    ID3D11Texture2D* pTexture = nullptr;
+    HRESULT hr = g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
+
+    if (SUCCEEDED(hr)) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = desc.Format;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+
+        hr = g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, &myTexture);
+        pTexture->Release();
+    }
+
+	stbi_image_free(rgba_data);
     // Main loop
     bool done = false;
     while (!done)
@@ -331,7 +374,7 @@ int main(int, char**)
         ImGui::NewFrame();
 
         //show any window here
-        ImGuiCreateInput();
+        ImGuiCreateInput(myTexture);
 
         // Loading Index asynchronously
         
