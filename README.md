@@ -22,14 +22,9 @@ Better Search aims to provide a fast and minimal search experience for opening f
 
 ## Screenshots
 
-### Loading State
+### Current State : Loading all the correct file icons
 
-<img width="500" alt="Loading State" src="https://github.com/user-attachments/assets/f4368bf7-6cda-4ebd-bf2e-6ee1518e243f" />
-
-### Search State
-
-<img width="500" height="250" alt="Screenshot 2026-06-12 144050" src="https://github.com/user-attachments/assets/445c88be-e3ae-44ef-81f2-2fb5d3ccefbb" />
-
+<img width="500" height="250" alt="Screenshot 2026-06-17 102812" src="https://github.com/user-attachments/assets/25ad4fdb-9485-4422-88d9-9b986736f680" />
 
 ---
 
