@@ -271,10 +271,7 @@ std::vector<FileLogs> FileEntry::SearchFiles(const std::string& prefix) {
         SQLITE_TRANSIENT);
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        std::cout << "Found: "
-            << reinterpret_cast<const char*>(
-                sqlite3_column_text(stmt, 0))
-            << '\n';
+       
 
         
         FileLogs file;

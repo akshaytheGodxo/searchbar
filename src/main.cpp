@@ -29,14 +29,133 @@ static bool                     g_SwapChainOccluded = false;
 static UINT                     g_ResizeWidth = 0, g_ResizeHeight = 0;
 static ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
 
+
+ID3D11ShaderResourceView* myTexture = nullptr;
+
 // Forward declarations of helper functions
 bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
 void CreateRenderTarget();
 void CleanupRenderTarget();
+void EXTRACT_ICON(std::string filepath);
+void LOAD_RGBA_DATA(unsigned char* rgba_data, int width, int height);
+unsigned char* CONVERT_ICON_TO_RGBA(HICON hIcon, int* width, int* height);
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 FileEntry g_FileIndexer;
+
+
+void EXTRACT_ICON(std::string filepath) {
+    LPCSTR converted_path = filepath.c_str();
+    
+    SHFILEINFOA sfi = {};
+
+    DWORD_PTR result = SHGetFileInfoA(
+        converted_path,
+        0,
+        &sfi,
+        sizeof(sfi),
+        SHGFI_ICON | SHGFI_LARGEICON
+    );
+
+    if (result == 0) {
+        return;
+    }
+
+    //std::cout << "Found something: " << sfi.hIcon << std::endl;
+
+    int width, height;
+    unsigned char* rgba_data = CONVERT_ICON_TO_RGBA(sfi.hIcon, &width, &height);
+
+    LOAD_RGBA_DATA(rgba_data, width, height);
+
+
+}
+unsigned char* CONVERT_ICON_TO_RGBA(HICON hIcon, int* width, int* height) {
+    ICONINFO iconinfo;
+    GetIconInfo(hIcon, &iconinfo);
+    HBITMAP hBmp = (HBITMAP)CopyImage(iconinfo.hbmColor, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+
+    if (!hBmp) {
+        if (iconinfo.hbmColor) DeleteObject(iconinfo.hbmColor);
+        if (iconinfo.hbmMask) DeleteObject(iconinfo.hbmMask);
+        return nullptr;
+    }
+
+    BITMAP btmp;
+    GetObject(hBmp, sizeof(BITMAP), &btmp);
+
+    *width = btmp.bmWidth;
+    *height = btmp.bmHeight;
+    int pixelcount = *width * *height;
+    unsigned char* rgbaData = new unsigned char[pixelcount * 4];
+
+    HDC hDC = GetDC(NULL);
+    BITMAPINFO bmi;
+    ZeroMemory(&bmi, sizeof(BITMAPINFO));
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = *width;
+    bmi.bmiHeader.biHeight = -*height; // Negative height for top-down DIB
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+
+    GetDIBits(hDC, hBmp, 0, *height, rgbaData, &bmi, DIB_RGB_COLORS);
+
+    ReleaseDC(NULL, hDC);
+
+    for (int i = 0; i < pixelcount; ++i) {
+        int index = i * 4;
+        unsigned char b = rgbaData[index];
+        unsigned char g = rgbaData[index + 1];
+        unsigned char r = rgbaData[index + 2];
+        unsigned char a = rgbaData[index + 3]; // May be 0 if the icon mask applies
+
+        // Apply BGRA -> RGBA mapping
+        rgbaData[index] = r;
+        rgbaData[index + 1] = g;
+        rgbaData[index + 2] = b;
+        rgbaData[index + 3] = a;
+    }
+    DeleteObject(hBmp);
+    if (iconinfo.hbmColor) DeleteObject(iconinfo.hbmColor);
+    if (iconinfo.hbmMask) DeleteObject(iconinfo.hbmMask);
+
+    return rgbaData;
+
+}
+
+void LOAD_RGBA_DATA(unsigned char* rgba_data, int width, int height) {
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = width;
+    desc.Height = height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    D3D11_SUBRESOURCE_DATA subresource = {};
+    subresource.pSysMem = rgba_data;
+    subresource.SysMemPitch = width * 4;
+
+    ID3D11Texture2D* pTexture = nullptr;
+    HRESULT hr = g_pd3dDevice->CreateTexture2D(&desc, &subresource, &pTexture);
+
+    if (SUCCEEDED(hr)) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = desc.Format;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+
+
+        hr = g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, &myTexture);
+        pTexture->Release();
+    }
+    stbi_image_free(rgba_data);
+}
 
 void LoadDB() {
     std::thread([]()
@@ -89,8 +208,8 @@ void DrawBetterGlass(ImGuiWindow* w) {
         IM_COL32(255, 255, 255, 60), r);               // top sheen
     dl->AddRect(a, b, IM_COL32(255, 255, 255, 40), r);              // border
 }
-
-void ImGuiCreateInput(ID3D11ShaderResourceView* myTexture) {
+    
+void ImGuiCreateInput() {
     
 
 
@@ -202,6 +321,8 @@ void ImGuiCreateInput(ID3D11ShaderResourceView* myTexture) {
     {
         ImGui::PushID(file.fullpath.c_str());
 
+        EXTRACT_ICON(file.fullpath);
+
         ImGui::Image(
             (ImTextureID)myTexture,
             ImVec2(32, 32)
@@ -301,39 +422,41 @@ int main(int, char**)
 
     ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
 
-    ID3D11ShaderResourceView* myTexture = nullptr;
-    // image display code
-    unsigned char* rgba_data = stbi_load_from_memory(image_data, sizeof(image_data), &image_width, &image_height, &channels, 4);
+    // image display code donot touch baby
+    // 
+ //   unsigned char* rgba_data = stbi_load_from_memory(image_data, sizeof(image_data), &image_width, &image_height, &channels, 4);
 
-    D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = image_width;
-    desc.Height = image_height;
-    desc.MipLevels = 1;
-    desc.ArraySize = 1;
-	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    desc.SampleDesc.Count = 1;
-	desc.Usage = D3D11_USAGE_DEFAULT;
-	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	D3D11_SUBRESOURCE_DATA subResource = {};
-    subResource.pSysMem = rgba_data;
-    subResource.SysMemPitch = image_width * 4;
+ //   D3D11_TEXTURE2D_DESC desc = {};
+ //   desc.Width = image_width;
+ //   desc.Height = image_height;
+ //   desc.MipLevels = 1;
+ //   desc.ArraySize = 1;
+	//desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+ //   desc.SampleDesc.Count = 1;
+	//desc.Usage = D3D11_USAGE_DEFAULT;
+	//desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	//D3D11_SUBRESOURCE_DATA subResource = {};
+ //   subResource.pSysMem = rgba_data;
+ //   subResource.SysMemPitch = image_width * 4;
 
 
-    ID3D11Texture2D* pTexture = nullptr;
-    HRESULT hr = g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
+ //   ID3D11Texture2D* pTexture = nullptr;
+ //   HRESULT hr = g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
 
-    if (SUCCEEDED(hr)) {
-        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Format = desc.Format;
-        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-        srvDesc.Texture2D.MostDetailedMip = 0;
-        srvDesc.Texture2D.MipLevels = 1;
+ //   if (SUCCEEDED(hr)) {
+ //       D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+ //       srvDesc.Format = desc.Format;
+ //       srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+ //       srvDesc.Texture2D.MostDetailedMip = 0;
+ //       srvDesc.Texture2D.MipLevels = 1;
 
-        hr = g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, &myTexture);
-        pTexture->Release();
-    }
+ //       hr = g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, &myTexture);
+ //       pTexture->Release();
+ //   }
 
-	stbi_image_free(rgba_data);
+	//stbi_image_free(rgba_data);
+    // 
+    
     // Main loop
     bool done = false;
     while (!done)
@@ -374,7 +497,7 @@ int main(int, char**)
         ImGui::NewFrame();
 
         //show any window here
-        ImGuiCreateInput(myTexture);
+        ImGuiCreateInput();
 
         // Loading Index asynchronously
         
