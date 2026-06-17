@@ -28,7 +28,8 @@ Better Search aims to provide a fast and minimal search experience for opening f
 
 ### Search State
 
-<img width="500" alt="Search State" src="https://github.com/user-attachments/assets/a63fc770-14f7-4198-9437-ce1073e53757" />
+<img width="500" height="250" alt="Screenshot 2026-06-12 144050" src="https://github.com/user-attachments/assets/445c88be-e3ae-44ef-81f2-2fb5d3ccefbb" />
+
 
 ---
 
