@@ -1,12 +1,13 @@
 #include <iostream>
 #include <filesystem>
+#include <minwinbase.h>
 #include <unordered_map>
 #include <memory>
 #include <vector>
 #include <fstream>
 #include "sqllite/sqlite3.h"
 #include "nlohmann/json.h"
-
+#include <WinBase.h>
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -16,6 +17,7 @@ struct FileInfo
     std::string filename;
     std::string fullpath;
     std::string extension;
+    std::string file_id;
     
 };
 
@@ -92,6 +94,7 @@ void SaveIndexToDB(
     const std::vector<FileInfo>& files,
     const std::string& dbPath)
 {
+
     sqlite3* db = nullptr;
 
     if (sqlite3_open(dbPath.c_str(), &db) != SQLITE_OK)
@@ -107,7 +110,8 @@ void SaveIndexToDB(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             filename TEXT NOT NULL,
             fullpath TEXT NOT NULL UNIQUE,
-            extension TEXT
+            extension TEXT,
+			file_id VARCHAR(255)
         );
     )";
 

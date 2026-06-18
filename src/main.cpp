@@ -21,7 +21,7 @@
 
 
 std::atomic<bool> g_IndexLoaded = false;
-// Data
+
 static ID3D11Device* g_pd3dDevice = nullptr;
 static ID3D11DeviceContext* g_pd3dDeviceContext = nullptr;
 static IDXGISwapChain* g_pSwapChain = nullptr;
@@ -62,7 +62,6 @@ void EXTRACT_ICON(std::string filepath) {
         return;
     }
 
-    //std::cout << "Found something: " << sfi.hIcon << std::endl;
 
     int width, height;
     unsigned char* rgba_data = CONVERT_ICON_TO_RGBA(sfi.hIcon, &width, &height);
@@ -280,7 +279,7 @@ void ImGuiCreateInput() {
         if (!input.empty())
         {
 
-            std::cout << "Searching for " << user_input << "\n";
+            //std::cout << "Searching for " << user_input << "\n";
             results =
                 g_FileIndexer.SearchFiles(input);
         }
