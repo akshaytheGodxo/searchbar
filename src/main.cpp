@@ -450,12 +450,10 @@ void ImGuiIndexManager()
         g_IndexLoaded = false;
 
         std::thread([]() {
-            // Drop and recreate — replace with your actual indexing logic
             sqlite3* db = nullptr;
             if (sqlite3_open("index.db", &db) == SQLITE_OK)
             {
                 sqlite3_exec(db, "DROP TABLE IF EXISTS files;", nullptr, nullptr, nullptr);
-                // ... your indexing code here ...
                 sqlite3_close(db);
             }
             g_IndexLoaded = true;
