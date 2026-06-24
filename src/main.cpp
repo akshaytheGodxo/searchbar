@@ -28,7 +28,7 @@ static IDXGISwapChain* g_pSwapChain = nullptr;
 static bool                     g_SwapChainOccluded = false;
 static UINT                     g_ResizeWidth = 0, g_ResizeHeight = 0;
 static ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
-
+static bool g_showIndexManagerWindow = false;
 
 ID3D11ShaderResourceView* myTexture = nullptr;
 
@@ -348,8 +348,138 @@ void ImGuiCreateInput() {
     }
     ImGui::PopStyleVar();
 
+    ImVec2 windowPos = ImGui::GetWindowPos();
+    ImVec2 windowSize = ImGui::GetWindowSize();
+    ImGui::SetCursorPos(ImVec2(windowSize.x - 30.0f, windowSize.y - 30.0f));
+
+    if (ImGui::Button("##gear", ImVec2(22, 22)))
+        g_showIndexManagerWindow = !g_showIndexManagerWindow;
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    ImVec2 btnPos = ImGui::GetItemRectMin();
+    ImVec2 btnCenter = ImVec2(btnPos.x + 11, btnPos.y + 11);
+    dl->AddCircle(btnCenter, 7.0f, IM_COL32(200, 200, 200, 180), 16, 1.5f);
+    dl->AddCircle(btnCenter, 3.0f, IM_COL32(200, 200, 200, 180), 8, 1.5f);
+
+
+
     ImGui::End();
 
+    ImGui::PopStyleVar();
+}
+
+
+void ImGuiIndexManager()
+{
+    if (!g_showIndexManagerWindow) return;
+
+    ImGui::SetNextWindowSize(ImVec2(360, 260), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowBgAlpha(0.0f);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 12));
+
+    bool open = true;
+    ImGui::Begin("Index Manager", &open,
+        ImGuiWindowFlags_NoCollapse 
+    );
+
+    // Closing via X button
+    if (!open) g_showIndexManagerWindow = false;
+
+    DrawBetterGlass(ImGui::GetCurrentWindow());
+
+    // --- Status row ---
+    ImGui::TextDisabled("Status:");
+    ImGui::SameLine();
+    if (g_IndexLoaded)
+        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "Index loaded");
+    else
+        ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f), "Loading...");
+
+    ImGui::Separator();
+
+    // --- File count (query from DB) ---
+    static int  s_FileCount = -1;
+    static bool s_CountFetched = false;
+
+    if (!s_CountFetched && g_IndexLoaded)
+    {
+        std::thread([]() {
+            sqlite3* db = nullptr;
+            if (sqlite3_open("index.db", &db) == SQLITE_OK)
+            {
+                sqlite3_stmt* stmt = nullptr;
+                if (sqlite3_prepare_v2(db,
+                    "SELECT COUNT(*) FROM files;", -1, &stmt, nullptr) == SQLITE_OK)
+                {
+                    if (sqlite3_step(stmt) == SQLITE_ROW)
+                        s_FileCount = sqlite3_column_int(stmt, 0);
+                    sqlite3_finalize(stmt);
+                }
+                sqlite3_close(db);
+            }
+            s_CountFetched = true;
+            }).detach();
+    }
+
+    if (s_CountFetched)
+    {
+        ImGui::Text("Indexed files: %d", s_FileCount);
+    }
+    else
+    {
+        ImGui::TextDisabled("Indexed files: ...");
+    }
+
+    ImGui::Spacing();
+
+    // --- Rebuild button ---
+    static bool s_Rebuilding = false;
+
+    if (s_Rebuilding)
+    {
+        ImGui::BeginDisabled();
+        ImGui::Button("Rebuilding...", ImVec2(-1, 0));
+        ImGui::EndDisabled();
+    }
+    else if (ImGui::Button("Rebuild Index", ImVec2(-1, 0)))
+    {
+        s_Rebuilding = true;
+        s_CountFetched = false;
+        s_FileCount = -1;
+        g_IndexLoaded = false;
+
+        std::thread([]() {
+            // Drop and recreate — replace with your actual indexing logic
+            sqlite3* db = nullptr;
+            if (sqlite3_open("index.db", &db) == SQLITE_OK)
+            {
+                sqlite3_exec(db, "DROP TABLE IF EXISTS files;", nullptr, nullptr, nullptr);
+                // ... your indexing code here ...
+                sqlite3_close(db);
+            }
+            g_IndexLoaded = true;
+            s_Rebuilding = false;
+            }).detach();
+    }
+
+    // --- Delete DB button ---
+    ImGui::Spacing();
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(120, 30, 30, 180));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(160, 40, 40, 220));
+
+    if (ImGui::Button("Delete Index DB", ImVec2(-1, 0)))
+    {
+        // Confirm before deleting — optionally open a modal
+        std::remove("index.db");
+        g_IndexLoaded = false;
+        s_CountFetched = false;
+        s_FileCount = -1;
+    }
+
+    ImGui::PopStyleColor(2);
+
+    ImGui::End();
     ImGui::PopStyleVar();
 }
 
@@ -497,7 +627,7 @@ int main(int, char**)
 
         //show any window here
         ImGuiCreateInput();
-
+        ImGuiIndexManager();
         // Loading Index asynchronously
         
         // Rendering

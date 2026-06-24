@@ -133,6 +133,7 @@
     <ClCompile Include="external\imgui_draw.cpp" />
     <ClCompile Include="external\imgui_tables.cpp" />
     <ClCompile Include="external\imgui_widgets.cpp" />
+    <ClCompile Include="src\FAST_PARSER.cpp" />
     <ClCompile Include="src\FileEntry.cpp" />
     <ClCompile Include="src\GetMetadata.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -149,6 +150,7 @@
     <ClInclude Include="external\imstb_textedit.h" />
     <ClInclude Include="external\imstb_truetype.h" />
     <ClInclude Include="FileEntry.h" />
+    <ClInclude Include="src\DEFINITIONS.h" />
     <ClInclude Include="src\FileEntry.h" />
     <ClInclude Include="src\image_data.h" />
     <ClInclude Include="src\nlohmann\json.h" />
