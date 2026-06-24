@@ -26,6 +26,10 @@ Better Search aims to provide a fast and minimal search experience for opening f
 
 <img width="500" height="250" alt="Screenshot 2026-06-17 102812" src="https://github.com/user-attachments/assets/25ad4fdb-9485-4422-88d9-9b986736f680" />
 
+### Index Manager Window : Handle and choose which files to load and show
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/10917805-8deb-454f-80a7-06eaf0f47e8c" />
+
+
 ---
 
 ## Technology Stack
