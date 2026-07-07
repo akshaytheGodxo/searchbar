@@ -1,4 +1,4 @@
-#pragma comment(lib, "dwmapi.lib")
+﻿#pragma comment(lib, "dwmapi.lib")
 #define STB_IMAGE_IMPLEMENTATION
 
 #include "imgui.h"
@@ -21,6 +21,7 @@
 
 
 std::atomic<bool> g_IndexLoaded = false;
+std::unordered_map<std::string, ID3D11ShaderResourceView*> g_TextureCache;
 
 static ID3D11Device* g_pd3dDevice = nullptr;
 static ID3D11DeviceContext* g_pd3dDeviceContext = nullptr;
@@ -37,39 +38,103 @@ bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
 void CreateRenderTarget();
 void CleanupRenderTarget();
-void EXTRACT_ICON(std::string filepath);
-void LOAD_RGBA_DATA(unsigned char* rgba_data, int width, int height);
+//void EXTRACT_ICON(std::string filepath);
+//void LOAD_RGBA_DATA(unsigned char* rgba_data, int width, int height);
 unsigned char* CONVERT_ICON_TO_RGBA(HICON hIcon, int* width, int* height);
+ID3D11ShaderResourceView* Extract_Correct_Icon(const std::string& filepath);
+ID3D11ShaderResourceView* RETURN_RGBA_DATA(unsigned char* rgba_data, int width, int height);
+ID3D11ShaderResourceView* GetOrLoadIcon(const std::string& fullpath, const std::string& extension);
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 FileEntry g_FileIndexer;
-
-
-void EXTRACT_ICON(std::string filepath) {
-    LPCSTR converted_path = filepath.c_str();
-    
+ID3D11ShaderResourceView* Extract_Correct_Icon(const std::string& filepath) {
+    /* new implementation, instead of a single global texture, it caches into a map of multiple textures making this process faster hopefully.*/
     SHFILEINFOA sfi = {};
 
     DWORD_PTR result = SHGetFileInfoA(
-        converted_path,
+        filepath.c_str(),
         0,
         &sfi,
         sizeof(sfi),
         SHGFI_ICON | SHGFI_LARGEICON
     );
 
-    if (result == 0) {
-        return;
+    if (result == 0 || sfi.hIcon == nullptr) {
+        return nullptr;
     }
-
 
     int width, height;
     unsigned char* rgba_data = CONVERT_ICON_TO_RGBA(sfi.hIcon, &width, &height);
 
-    LOAD_RGBA_DATA(rgba_data, width, height);
+    DestroyIcon(sfi.hIcon); 
 
+    if (!rgba_data)
+        return nullptr;
 
+    return RETURN_RGBA_DATA(rgba_data, width, height); // ownership of rgba_data transfers in; it frees it internally via stbi_image_free
 }
+ID3D11ShaderResourceView* RETURN_RGBA_DATA(unsigned char* rgba_data, int width, int height) {
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = width;
+    desc.Height = height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    D3D11_SUBRESOURCE_DATA subresource = {};
+    subresource.pSysMem = rgba_data;
+    subresource.SysMemPitch = width * 4;
+
+    ID3D11Texture2D* pTexture = nullptr;
+    HRESULT hr = g_pd3dDevice->CreateTexture2D(&desc, &subresource, &pTexture);
+
+    ID3D11ShaderResourceView* srv = nullptr;
+
+    if (SUCCEEDED(hr)) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = desc.Format;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+
+        g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, &srv);
+        pTexture->Release();
+    }
+
+    stbi_image_free(rgba_data);
+    return srv; // nullptr if creation failed — caller must check
+}
+
+// This is the function that extracts the icon from a file path and loads it into a Direct3D texture. but only using a single global texture , don't wanna remove this code cuz it's beautiful and ugly and i worked so hard for this 😭
+//void EXTRACT_ICON(std::string filepath) {
+//    LPCSTR converted_path = filepath.c_str();
+//    
+//    SHFILEINFOA sfi = {};
+//
+//    DWORD_PTR result = SHGetFileInfoA(
+//        converted_path,
+//        0,
+//        &sfi,
+//        sizeof(sfi),
+//        SHGFI_ICON | SHGFI_LARGEICON
+//    );
+//
+//    if (result == 0) {
+//        return;
+//    }
+//
+//
+//    int width, height;
+//    unsigned char* rgba_data = CONVERT_ICON_TO_RGBA(sfi.hIcon, &width, &height);
+//
+//    LOAD_RGBA_DATA(rgba_data, width, height);
+//
+//
+//}
+//
 unsigned char* CONVERT_ICON_TO_RGBA(HICON hIcon, int* width, int* height) {
     ICONINFO iconinfo;
     GetIconInfo(hIcon, &iconinfo);
@@ -125,36 +190,49 @@ unsigned char* CONVERT_ICON_TO_RGBA(HICON hIcon, int* width, int* height) {
 
 }
 
-void LOAD_RGBA_DATA(unsigned char* rgba_data, int width, int height) {
-    D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = width;
-    desc.Height = height;
-    desc.MipLevels = 1;
-    desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    desc.SampleDesc.Count = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    D3D11_SUBRESOURCE_DATA subresource = {};
-    subresource.pSysMem = rgba_data;
-    subresource.SysMemPitch = width * 4;
+//void LOAD_RGBA_DATA(unsigned char* rgba_data, int width, int height) {
+//    D3D11_TEXTURE2D_DESC desc = {};
+//    desc.Width = width;
+//    desc.Height = height;
+//    desc.MipLevels = 1;
+//    desc.ArraySize = 1;
+//    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+//    desc.SampleDesc.Count = 1;
+//    desc.Usage = D3D11_USAGE_DEFAULT;
+//    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+//    D3D11_SUBRESOURCE_DATA subresource = {};
+//    subresource.pSysMem = rgba_data;
+//    subresource.SysMemPitch = width * 4;
+//
+//    ID3D11Texture2D* pTexture = nullptr;
+//    HRESULT hr = g_pd3dDevice->CreateTexture2D(&desc, &subresource, &pTexture);
+//
+//    if (SUCCEEDED(hr)) {
+//        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+//        srvDesc.Format = desc.Format;
+//        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+//        srvDesc.Texture2D.MostDetailedMip = 0;
+//        srvDesc.Texture2D.MipLevels = 1;
+//
+//
+//        hr = g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, &myTexture);
+//        pTexture->Release();
+//    }
+//    stbi_image_free(rgba_data);
+//}
 
-    ID3D11Texture2D* pTexture = nullptr;
-    HRESULT hr = g_pd3dDevice->CreateTexture2D(&desc, &subresource, &pTexture);
+ID3D11ShaderResourceView* GetOrLoadIcon(const std::string& fullpath, const std::string& extension)
+{
+    auto it = g_TextureCache.find(extension);
+    if (it != g_TextureCache.end())
+        return it->second; 
 
-    if (SUCCEEDED(hr)) {
-        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Format = desc.Format;
-        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-        srvDesc.Texture2D.MostDetailedMip = 0;
-        srvDesc.Texture2D.MipLevels = 1;
-
-
-        hr = g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, &myTexture);
-        pTexture->Release();
-    }
-    stbi_image_free(rgba_data);
+    ID3D11ShaderResourceView* tex = Extract_Correct_Icon(fullpath); 
+    g_TextureCache[extension] = tex;
+    return tex;
 }
+
+
 
 void LoadDB() {
     std::thread([]()
@@ -319,11 +397,11 @@ void ImGuiCreateInput() {
     for (const auto& file : results)
     {
         ImGui::PushID(file.fullpath.c_str());
-
-        EXTRACT_ICON(file.fullpath);
-
+        //this time we create new texture for each individual icon 
+		ID3D11ShaderResourceView* currentIcon= GetOrLoadIcon(file.fullpath, file.extension);
+        if (currentIcon) 
         ImGui::Image(
-            (ImTextureID)myTexture,
+            (ImTextureID)currentIcon,
             ImVec2(32, 32)
         );
 
@@ -468,7 +546,7 @@ void ImGuiIndexManager()
 
     if (ImGui::Button("Delete Index DB", ImVec2(-1, 0)))
     {
-        // Confirm before deleting � optionally open a modal
+        // Confirm before deleting — optionally open a modal
         std::remove("index.db");
         g_IndexLoaded = false;
         s_CountFetched = false;
